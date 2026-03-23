@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="auth-container">
+    <div class="auth-card">
+        <h2 class="auth-title">用户注册</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" class="form-control" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" class="form-control" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>昵称</label>
+                <input type="text" class="form-control" name="nickname">
+            </div>
+            <div class="form-group">
+                <label>真实姓名</label>
+                <input type="text" class="form-control" name="realName">
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" class="form-control" name="phone">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">注册</button>
+        </form>
+        <div class="auth-footer">
+            已有账号？<a href="/login">立即登录</a>
+        </div>
+    </div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    document.getElementById('registerForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const res = await api('/api/user/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                username: form.username.value,
+                password: form.password.value,
+                nickname: form.nickname.value,
+                realName: form.realName.value,
+                phone: form.phone.value
+            })
+        });
+        if (res.code === 200) {
+            alert('注册成功，请登录');
+            location.href = '/login';
+        } else {
+            alert(res.msg);
+        }
+    };
+</script>
+</body>
+</html>

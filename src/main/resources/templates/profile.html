@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container" style="max-width:600px;">
+    <h1 class="page-title">个人中心</h1>
+    <div class="card">
+        <form id="profileForm">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" class="form-control" id="username" disabled>
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <input type="text" class="form-control" id="role" disabled>
+            </div>
+            <div class="form-group">
+                <label>昵称</label>
+                <input type="text" class="form-control" name="nickname">
+            </div>
+            <div class="form-group">
+                <label>真实姓名</label>
+                <input type="text" class="form-control" name="realName">
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" class="form-control" name="phone">
+            </div>
+            <button type="submit" class="btn btn-primary">保存修改</button>
+        </form>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+        <h3 style="margin-bottom:1rem;">快捷入口</h3>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+            <a href="/my-favorites" class="btn btn-secondary">我的收藏</a>
+            <a href="/my-registrations" class="btn btn-secondary">我的报名</a>
+            <a href="/my-activities" class="btn btn-secondary">活动管理</a>
+            <a href="/notifications" class="btn btn-secondary">消息通知</a>
+        </div>
+    </div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    Auth.check();
+    const user = Auth.getUser();
+
+    document.getElementById('username').value = user.username;
+    document.getElementById('role').value = user.role === 'ADMIN' ? '管理员' : '普通用户';
+
+    const form = document.getElementById('profileForm');
+    form.nickname.value = user.nickname || '';
+    form.realName.value = user.realName || '';
+    form.phone.value = user.phone || '';
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const res = await api(`/api/user/${user.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                nickname: form.nickname.value,
+                realName: form.realName.value,
+                phone: form.phone.value
+            })
+        });
+        if (res.code === 200) {
+            Auth.setUser(res.data);
+            alert('保存成功');
+            updateNavbar();
+        } else {
+            alert(res.msg);
+        }
+    };
+</script>
+</body>
+</html>

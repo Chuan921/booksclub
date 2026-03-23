@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布活动 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container" style="max-width:600px;">
+    <h1 class="page-title" id="pageTitle">发布新活动</h1>
+    <div class="card">
+        <form id="activityForm">
+            <div class="form-group">
+                <label>活动标题 *</label>
+                <input type="text" class="form-control" name="title" required>
+            </div>
+            <div class="form-group">
+                <label>活动类型 *</label>
+                <select class="form-control" name="type" required>
+                    <option value="ONLINE">线上</option>
+                    <option value="OFFLINE">线下</option>
+                    <option value="HYBRID">混合</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>活动描述</label>
+                <textarea class="form-control" name="description" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+                <label>活动地点/会议链接</label>
+                <input type="text" class="form-control" name="location" placeholder="线上填写会议链接，线下填写地址">
+            </div>
+            <div class="form-group">
+                <label>开始时间 *</label>
+                <input type="datetime-local" class="form-control" name="startTime" required>
+            </div>
+            <div class="form-group">
+                <label>结束时间 *</label>
+                <input type="datetime-local" class="form-control" name="endTime" required>
+            </div>
+            <div class="form-group">
+                <label>人数上限 (0表示不限)</label>
+                <input type="number" class="form-control" name="maxParticipants" value="0" min="0">
+            </div>
+            <div style="display:flex; gap:1rem;">
+                <button type="submit" class="btn btn-primary">提交</button>
+                <a href="/my-activities" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    Auth.check();
+    const user = Auth.getUser();
+    const path = location.pathname;
+    const isEdit = path.includes('/edit-activity/');
+    const activityId = isEdit ? path.split('/').pop() : null;
+
+    if (isEdit) {
+        document.getElementById('pageTitle').textContent = '编辑活动';
+        api(`/api/activity/${activityId}?userId=${user.id}`).then(res => {
+            if (res.code !== 200) { alert(res.msg); return; }
+            const a = res.data;
+            const form = document.getElementById('activityForm');
+            form.title.value = a.title;
+            form.type.value = a.type;
+            form.description.value = a.description || '';
+            form.location.value = a.location || '';
+            form.startTime.value = a.startTime ? a.startTime.slice(0, 16) : '';
+            form.endTime.value = a.endTime ? a.endTime.slice(0, 16) : '';
+            form.maxParticipants.value = a.maxParticipants || 0;
+        });
+    }
+
+    document.getElementById('activityForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            title: form.title.value,
+            type: form.type.value,
+            description: form.description.value,
+            location: form.location.value,
+            startTime: form.startTime.value + ':00',
+            endTime: form.endTime.value + ':00',
+            maxParticipants: parseInt(form.maxParticipants.value) || 0
+        };
+        let res;
+        if (isEdit) {
+            res = await api(`/api/activity/${activityId}?userId=${user.id}`, {
+                method: 'PUT', body: JSON.stringify(data)
+            });
+        } else {
+            res = await api(`/api/activity?userId=${user.id}`, {
+                method: 'POST', body: JSON.stringify(data)
+            });
+        }
+        if (res.code === 200) {
+            alert(isEdit ? '更新成功' : '创建成功');
+            location.href = '/my-activities';
+        } else {
+            alert(res.msg);
+        }
+    };
+</script>
+</body>
+</html>

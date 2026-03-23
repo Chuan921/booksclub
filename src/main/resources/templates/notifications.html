@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息通知 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h1 class="page-title" style="margin:0; border:none; padding:0;">消息通知</h1>
+        <button class="btn btn-secondary" onclick="markAllRead()">全部已读</button>
+    </div>
+    <div id="notificationList" class="card"></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    Auth.check();
+    const user = Auth.getUser();
+
+    function getTypeText(type) {
+        const map = {
+            'REMINDER_1DAY': '活动提醒',
+            'REMINDER_10MIN': '签到提醒',
+            'COMMENT': '评论通知',
+            'LIKE_ACTIVITY': '点赞通知',
+            'LIKE_COMMENT': '评论被赞'
+        };
+        return map[type] || '系统通知';
+    }
+
+    function loadList() {
+        api(`/api/notification/list?userId=${user.id}`).then(res => {
+            const list = document.getElementById('notificationList');
+            if (!res.data || res.data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无消息</div>';
+                return;
+            }
+            list.innerHTML = res.data.map(n => `
+                    <div class="notification-item ${n.isRead === 0 ? 'unread' : ''}" onclick="markRead(${n.id}, ${n.activityId})">
+                        <div class="notification-content">
+                            <div style="margin-bottom:0.25rem;">
+                                <span style="font-weight:500;">${getTypeText(n.type)}</span>
+                                ${n.isRead === 0 ? '<span class="badge" style="background:var(--danger);color:white;margin-left:0.5rem;">新</span>' : ''}
+                            </div>
+                            <div style="color:var(--gray-800);">${n.content}</div>
+                            ${n.activityTitle ? `<div style="color:var(--primary);font-size:0.875rem;margin-top:0.25rem;">相关活动：${n.activityTitle}</div>` : ''}
+                        </div>
+                        <div class="notification-time">${formatDate(n.createTime)}</div>
+                    </div>
+                `).join('');
+        });
+    }
+
+    async function markRead(id, activityId) {
+        await api(`/api/notification/${id}/read`, { method: 'PUT' });
+        if (activityId) {
+            location.href = `/activity/${activityId}`;
+        } else {
+            loadList();
+            updateNavbar();
+        }
+    }
+
+    async function markAllRead() {
+        await api(`/api/notification/read-all?userId=${user.id}`, { method: 'PUT' });
+        loadList();
+        updateNavbar();
+    }
+
+    loadList();
+</script>
+</body>
+</html>

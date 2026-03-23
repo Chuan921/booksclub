@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>读书会活动管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container">
+    <div class="card" style="text-align:center; padding:4rem 2rem;">
+        <h1 style="color:var(--primary-dark); margin-bottom:1rem;">📚 读书会活动在线管理系统</h1>
+        <p style="color:var(--gray-600); margin-bottom:2rem;">提升知识共享效率，优化组织学习体验</p>
+        <div style="display:flex; gap:1rem; justify-content:center;">
+            <a href="/activities" class="btn btn-primary">浏览活动</a>
+            <a href="/create-activity" class="btn btn-secondary" id="createBtn">发布活动</a>
+        </div>
+    </div>
+    <h2 class="page-title">最新活动</h2>
+    <div id="activityList" class="activity-list"></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    const user = Auth.getUser();
+    if (!user) document.getElementById('createBtn').style.display = 'none';
+
+    api(`/api/activity/list${user ? '?userId=' + user.id : ''}`).then(res => {
+        const list = document.getElementById('activityList');
+        if (!res.data || res.data.length === 0) {
+            list.innerHTML = '<div class="empty-state">暂无活动</div>';
+            return;
+        }
+        list.innerHTML = res.data.slice(0, 5).map(a => `
+                <div class="card activity-item">
+                    <div class="activity-info">
+                        <div class="card-title">${a.title} ${getTypeBadge(a.type)}</div>
+                        <div class="card-meta">
+                            <span>时间：${formatDate(a.startTime)}</span> |
+                            <span>地点：${a.location || '待定'}</span> |
+                            <span>发起人：${a.creatorName}</span> |
+                            <span>报名人数：${a.currentParticipants}/${a.maxParticipants || '不限'}人</span>
+                        </div>
+                    </div>
+                    <a href="/activity/${a.id}" class="btn btn-primary">查看详情</a>
+                </div>
+            `).join('');
+    });
+</script>
+</body>
+</html>

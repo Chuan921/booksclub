@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动列表 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .search-bar {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .search-form {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .search-input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .search-input-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--gray-800);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        .search-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .search-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            font-size: 1rem;
+            background: white;
+        }
+        .search-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h1 class="page-title" style="margin:0; border:none; padding:0;">所有活动</h1>
+        <a href="/create-activity" class="btn btn-primary" id="createBtn">发布活动</a>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+        <div class="search-form">
+            <div class="search-input-group">
+                <label for="searchKeyword">关键字搜索</label>
+                <input type="text" id="searchKeyword" class="search-input" placeholder="搜索标题、描述或地点...">
+            </div>
+            <div class="search-input-group" style="flex: 0 0 150px;">
+                <label for="searchType">活动类型</label>
+                <select id="searchType" class="search-select">
+                    <option value="">全部类型</option>
+                    <option value="ONLINE">线上</option>
+                    <option value="OFFLINE">线下</option>
+                    <option value="HYBRID">混合</option>
+                </select>
+            </div>
+            <div class="search-buttons">
+                <button class="btn btn-primary" onclick="searchActivities()">搜索</button>
+                <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="activityList" class="activity-list"></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    const user = Auth.getUser();
+    if (!user) document.getElementById('createBtn').style.display = 'none';
+
+    // 加载活动列表
+    function loadActivities(keyword = '', type = '') {
+        let url = '/api/activity/list';
+        const params = new URLSearchParams();
+
+        if (user) params.append('userId', user.id);
+        if (keyword) params.append('keyword', keyword);
+        if (type) params.append('type', type);
+
+        if (params.toString()) url += '?' + params.toString();
+
+        api(url).then(res => {
+            const list = document.getElementById('activityList');
+            if (!res.data || res.data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无活动</div>';
+                return;
+            }
+            list.innerHTML = res.data.map(a => `
+                <div class="card activity-item">
+                    <div class="activity-info">
+                        <div class="card-title">${a.title} ${getTypeBadge(a.type)}</div>
+                        <div class="card-meta">
+                            <span>时间：${formatDate(a.startTime)} ~ ${formatDate(a.endTime)}</span><br>
+                            <span>地点：${a.location || '待定'}</span> |
+                            <span>发起人：${a.creatorName}</span> |
+                            <span>报名人数：${a.currentParticipants}/${a.maxParticipants || '不限'}人</span> |
+                            <span>点赞数：${a.likeCount || 0}</span>
+                        </div>
+                    </div>
+                    <div class="activity-actions">
+                        <button class="share-btn" onclick="shareActivity(${a.id}, '${a.title.replace(/'/g, "\\'")}')">🔗 分享</button>
+                        <a href="/activity/${a.id}" class="btn btn-primary btn-sm">查看详情</a>
+                    </div>
+                </div>
+            `).join('');
+        });
+    }
+
+    // 搜索活动
+    function searchActivities() {
+        const keyword = document.getElementById('searchKeyword').value.trim();
+        const type = document.getElementById('searchType').value;
+        loadActivities(keyword, type);
+    }
+
+    // 重置搜索
+    function resetSearch() {
+        document.getElementById('searchKeyword').value = '';
+        document.getElementById('searchType').value = '';
+        loadActivities();
+    }
+
+    // 回车键搜索
+    document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchActivities();
+        }
+    });
+
+    // 页面加载时显示所有活动
+    loadActivities();
+</script>
+</body>
+</html>

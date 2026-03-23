@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动详情 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container">
+    <div id="activityDetail"></div>
+    <div class="card" style="margin-top:1.5rem;">
+        <h3 style="margin-bottom:1rem;">评论区</h3>
+        <div id="commentForm" style="display:none; margin-bottom:1.5rem;">
+            <textarea id="commentContent" class="form-control" placeholder="分享你的读后感..."></textarea>
+            <button class="btn btn-primary" style="margin-top:0.5rem;" onclick="submitComment()">发表评论</button>
+        </div>
+        <div id="commentList" class="comment-list"></div>
+    </div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    const user = Auth.getUser();
+    const activityId = location.pathname.split('/').pop();
+    let activityData = null;
+
+    // 判断活动是否已结束
+    function isActivityEnded(activity) {
+        const now = new Date();
+        const endTime = new Date(activity.endTime);
+        return now > endTime || activity.status !== 'ACTIVE';
+    }
+
+    function loadActivity() {
+        api(`/api/activity/${activityId}${user ? '?userId=' + user.id : ''}`).then(res => {
+            if (res.code !== 200) { alert(res.msg); return; }
+            activityData = res.data;
+            const a = res.data;
+            document.getElementById('activityDetail').innerHTML = `
+                    <div class="card">
+                        <h1 class="card-title" style="font-size:1.75rem;">${a.title} ${getTypeBadge(a.type)}</h1>
+                        <div class="card-meta" style="margin:1rem 0;">
+                            <p>时间：${formatDate(a.startTime)} ~ ${formatDate(a.endTime)}</p>
+                            <p>地点：${a.location || '待定'}</p>
+                            <p>发起人：${a.creatorName}</p>
+                            <p>报名人数：${a.currentParticipants}/${a.maxParticipants || '不限'}人</p>
+                        </div>
+                        <div class="card-content" style="margin:1.5rem 0; padding:1rem; background:var(--gray-100); border-radius:4px;">
+                            ${a.description || '暂无描述'}
+                        </div>
+                        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                            ${user ? `
+                                <button class="interaction-btn ${a.liked ? 'active' : ''}" onclick="toggleLike()">
+                                    ❤ 点赞 <span id="likeCount">${a.likeCount || 0}</span>
+                                </button>
+                                <button class="interaction-btn ${a.favorited ? 'active' : ''}" onclick="toggleFavorite()">
+                                    ${a.favorited ? '⭐ 已收藏' : '☆ 收藏'}
+                                </button>
+                                <button class="share-btn" onclick="shareActivity(${a.id}, '${a.title.replace(/'/g, "\\'")}')">
+                                    🔗 分享
+                                </button>
+                                ${isActivityEnded(a) ? `
+                                    <button class="btn btn-secondary" disabled>活动已结束</button>
+                                ` : `
+                                    <button class="btn ${a.registered ? 'btn-secondary' : 'btn-primary'}" onclick="toggleRegister()">
+                                        ${a.registered ? '取消报名' : '立即报名'}
+                                    </button>
+                                `}
+                            ` : `
+                                <button class="share-btn" onclick="shareActivity(${a.id}, '${a.title.replace(/'/g, "\\'")}')">
+                                    🔗 分享
+                                </button>
+                                <a href="/login" class="btn btn-primary">登录后参与</a>
+                            `}
+                        </div>
+                    </div>
+                `;
+            if (user) document.getElementById('commentForm').style.display = 'block';
+        });
+    }
+
+    function loadComments() {
+        api(`/api/comment/activity/${activityId}${user ? '?userId=' + user.id : ''}`).then(res => {
+            const list = document.getElementById('commentList');
+            if (!res.data || res.data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无评论</div>';
+                return;
+            }
+            list.innerHTML = res.data.map(c => `
+                    <div class="comment-item" id="comment-${c.id}">
+                        <div class="comment-header">
+                            <span class="comment-author">${c.userName}</span>
+                            <span class="comment-time">${formatDate(c.createTime)}</span>
+                        </div>
+                        <div class="comment-content">${c.content}</div>
+                        <div class="comment-actions">
+                            ${user ? `<button class="interaction-btn ${c.liked ? 'active' : ''}" onclick="toggleCommentLike(${c.id})">❤ ${c.likeCount || 0}</button>` : ''}
+                            <button class="share-btn" onclick="shareComment(${activityId}, ${c.id})">🔗 分享</button>
+                            ${user && (user.id === c.userId || user.role === 'ADMIN') ? `<button class="btn btn-sm btn-danger" onclick="deleteComment(${c.id})">删除</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+
+            // 如果URL中有评论锚点，滚动到对应评论
+            if (window.location.hash && window.location.hash.startsWith('#comment-')) {
+                const targetComment = document.querySelector(window.location.hash);
+                if (targetComment) {
+                    targetComment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    targetComment.style.backgroundColor = '#ebf4ff';
+                    setTimeout(() => {
+                        targetComment.style.transition = 'background-color 1s';
+                        targetComment.style.backgroundColor = '';
+                    }, 2000);
+                }
+            }
+        });
+    }
+
+    async function toggleLike() {
+        if (!user) return;
+        await api(`/api/interaction/like/activity?activityId=${activityId}&userId=${user.id}`, { method: 'POST' });
+        loadActivity();
+    }
+
+    async function toggleFavorite() {
+        if (!user) return;
+        await api(`/api/interaction/favorite?activityId=${activityId}&userId=${user.id}`, { method: 'POST' });
+        loadActivity();
+    }
+
+    async function toggleRegister() {
+        if (!user) return;
+        const method = activityData.registered ? 'DELETE' : 'POST';
+        const res = await api(`/api/registration?activityId=${activityId}&userId=${user.id}`, { method });
+        alert(res.msg);
+        loadActivity();
+    }
+
+    async function submitComment() {
+        const content = document.getElementById('commentContent').value.trim();
+        if (!content) { alert('请输入评论内容'); return; }
+        const res = await api('/api/comment', {
+            method: 'POST',
+            body: JSON.stringify({ activityId, userId: user.id, content })
+        });
+        if (res.code === 200) {
+            document.getElementById('commentContent').value = '';
+            loadComments();
+        } else {
+            alert(res.msg);
+        }
+    }
+
+    async function toggleCommentLike(commentId) {
+        await api(`/api/interaction/like/comment?commentId=${commentId}&userId=${user.id}`, { method: 'POST' });
+        loadComments();
+    }
+
+    async function deleteComment(commentId) {
+        if (!confirm('确定删除此评论？')) return;
+        await api(`/api/comment/${commentId}?userId=${user.id}`, { method: 'DELETE' });
+        loadComments();
+    }
+
+    loadActivity();
+    loadComments();
+</script>
+</body>
+</html>

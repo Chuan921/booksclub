@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的收藏 - 读书会</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar"></nav>
+<div class="container">
+    <h1 class="page-title">我的收藏</h1>
+    <div id="favoriteList" class="activity-list"></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+    Auth.check();
+    const user = Auth.getUser();
+
+    function loadList() {
+        api(`/api/interaction/favorites?userId=${user.id}`).then(res => {
+            const list = document.getElementById('favoriteList');
+            if (!res.data || res.data.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无收藏</div>';
+                return;
+            }
+            list.innerHTML = res.data.map(f => {
+                const a = f.activity;
+                if (!a) return '';
+                return `
+                        <div class="card activity-item">
+                            <div class="activity-info">
+                                <div class="card-title">${a.title} ${getTypeBadge(a.type)}</div>
+                                <div class="card-meta">
+                                    <span>时间：${formatDate(a.startTime)}</span> |
+                                    <span>地点：${a.location || '待定'}</span> |
+                                    <span>发起人：${a.creatorName}</span> |
+                                    <span>收藏时间：${formatDate(f.createTime)}</span>
+                                </div>
+                            </div>
+                            <div class="activity-actions">
+                                <a href="/activity/${a.id}" class="btn btn-sm btn-primary">查看详情</a>
+                                <button class="btn btn-sm btn-danger" onclick="cancelFav(${a.id})">取消收藏</button>
+                            </div>
+                        </div>
+                    `;
+            }).join('');
+        });
+    }
+
+    async function cancelFav(activityId) {
+        const res = await api(`/api/interaction/favorite?activityId=${activityId}&userId=${user.id}`, { method: 'POST' });
+        loadList();
+    }
+
+    loadList();
+</script>
+</body>
+</html>
